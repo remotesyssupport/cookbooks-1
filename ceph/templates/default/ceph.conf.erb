@@ -1,0 +1,28 @@
+[global]
+  auth supported = none
+
+[mon]
+  mon data = /srv/mon
+
+<% @mon["hosts"].each do |host| %>
+[mon.<%= host["hostname"] %>]
+  host = <%= host["hostname"] %>
+  mon addr = <%= host["ip"] %>:6789
+<% end %>
+
+[mds]
+
+<% @mds["hosts"].each do |host| %>
+[mds.<%= host["hostname"] %>]
+  host = <%= host["hostname"] %>
+<% end %>
+
+[osd]
+  osd data = /srv/$name
+  osd journal = /srv/$name.journal
+  osd journal size = 1000
+
+<% @osd["hosts"].each_with_index do |host, index| %>
+[osd.<%= index %>]
+  host = <%= host["hostname"] %>
+<% end %>
