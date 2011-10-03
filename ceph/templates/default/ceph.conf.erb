@@ -4,15 +4,15 @@
 [mon]
   mon data = /srv/mon
 
-<% @mon["hosts"].each do |host| %>
+<% @mon.each do |host| %>
 [mon.<%= host["hostname"] %>]
   host = <%= host["hostname"] %>
-  mon addr = <%= host["ip"] %>:6789
+  mon addr = <%= host["ipaddress"] %>:6789
 <% end %>
 
 [mds]
 
-<% @mds["hosts"].each do |host| %>
+<% @mds.each do |host| %>
 [mds.<%= host["hostname"] %>]
   host = <%= host["hostname"] %>
 <% end %>
@@ -22,7 +22,8 @@
   osd journal = /srv/$name.journal
   osd journal size = 1000
 
-<% @osd["hosts"].each_with_index do |host, index| %>
+<% @osd.each_with_index do |host, index| %>
 [osd.<%= index %>]
   host = <%= host["hostname"] %>
 <% end %>
+
