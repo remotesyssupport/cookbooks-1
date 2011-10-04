@@ -22,8 +22,8 @@
   osd journal = /srv/$name.journal
   osd journal size = 1000
 
-<% @osd.each_with_index do |host, index| %>
-[osd.<%= index %>]
+<% @osd.each do |host| %>
+[osd.<%= host["ceph"]["osd_id"] %>]
   host = <%= host["hostname"] %>
 <% end %>
 

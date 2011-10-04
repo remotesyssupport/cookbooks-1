@@ -1,2 +1,45 @@
-include_recipe "ceph"
+require 'base64'
+
+ruby_block "set osd id" do
+  block do
+    puts search(:node, 'recipes:ceph\:\:osd').size
+    node.set[:ceph][:osd_id] = search(:node, 'recipes:ceph\:\:osd').size
+  end
+  not_if { node[:ceph][:osd_id] }	
+end
+
+a = false
+search(:node, 'recipes:ceph\:\:osd').each { |osd| a = true if osd[:hostname] == node[:hostname] }
+if a
+  include_recipe "ceph"
+  directory "/tmp/ceph-stage2"
+
+  template "/tmp/ceph-stage2/conf" do
+    source "ceph.conf.erb"
+    variables(
+      :mon => search(:node, 'recipes:ceph\:\:mon'),
+      :mds => search(:node, 'recipes:ceph\:\:mds'),
+      :osd => search(:node, 'recipes:ceph\:\:osd')
+    )
+  end
+
+  file "/tmp/ceph-stage2/monmap" do
+    content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
+  end
+
+  execute "init osd" do
+    command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons osd"
+    not_if { File.exists?("/tmp/ceph-stage2/key.osd.*") }
+  end
+
+  ruby_block "read key && keyring" do
+    block do
+      key = Base64.encode64(File.read("/tmp/ceph-stage2/key.osd.#{node[:ceph][:osd_id]}"))
+      node.set[:ceph][:osd][:key] = key
+      keyring = Base64.encode64(File.read("/tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"))
+      node.set[:ceph][:osd][:keyring] = keyring
+    end
+    not_if { node[:ceph][:osd] }
+  end
+end
 
