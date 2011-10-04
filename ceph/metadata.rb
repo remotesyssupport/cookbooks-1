@@ -1,6 +1,6 @@
-maintainer       "YOUR_COMPANY_NAME"
-maintainer_email "YOUR_EMAIL"
+maintainer       "Travelplanet24 S.A. "                                                                                                                                          
+maintainer_email "bragi@ragnarson.com"
 license          "All rights reserved"
-description      "Installs/Configures ceph"
+description      "Allows using unfuddle git repositories as root"
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.rdoc'))
 version          "0.0.2"
