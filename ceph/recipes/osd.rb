@@ -2,7 +2,6 @@ require 'base64'
 
 ruby_block "set osd id" do
   block do
-    puts search(:node, 'recipes:ceph\:\:osd').size
     node.set[:ceph][:osd_id] = search(:node, 'recipes:ceph\:\:osd').size
   end
   not_if { node[:ceph][:osd_id] }	

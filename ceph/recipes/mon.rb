@@ -37,7 +37,6 @@ end
 execute "prepare mon" do
   action :nothing
   command "mkcephfs -d #{node[:ceph][:mount_point]} --prepare-mon"
-  #not_if { File.exists?("#{node[:ceph][:mount_point]}/keyring.admin") }
 end
 
 execute "init mon" do 
@@ -47,8 +46,8 @@ execute "init mon" do
   #node.set[:ceph][:mon][:keyring] = keyring
 end
 
-#if node[:ceph][:mon]
-#  file "/etc/ceph/keyring" do
-#    content Base64.decode64(node[:ceph][:mon][:keyring])
-#  end
-#end
+if node[:ceph][:mon]
+  file "/etc/ceph/keyring" do
+    content Base64.decode64(node[:ceph][:mon][:keyring])
+  end
+end
