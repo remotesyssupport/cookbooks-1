@@ -15,8 +15,10 @@ if a
     )
   end
 
+  if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
   file "/tmp/ceph-stage2/monmap" do
     content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
+  end
   end
 
   execute "init mds" do
