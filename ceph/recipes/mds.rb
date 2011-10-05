@@ -13,12 +13,14 @@ if search(:node, 'recipes:ceph\:\:mds').any? { |mds| mds[:hostname] == node[:hos
     )
   end
 
+  # zapisuje sie monmap z wezla mon w folderze /tmp/ceph-stage2/monmap
   if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
     file "/tmp/ceph-stage2/monmap" do
       content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
     end
   end
 
+  # za pomoca mkcephfs inicjalizujemy wezel mds, tworzone sa pliki key.mds.$name oraz keyring.mds.$name
   execute "init mds" do
     command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons mds"
     not_if { File.exists?("/tmp/ceph-stage2/key.mds.*") }
@@ -26,6 +28,7 @@ if search(:node, 'recipes:ceph\:\:mds').any? { |mds| mds[:hostname] == node[:hos
     notifies :create, "ruby_block[read key && keyring]"
   end
 
+  # pliki utworzone podczas inicjalizacji sa zapisywane w wezle
   ruby_block "read key && keyring" do
     action :nothing  
     block do

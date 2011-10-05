@@ -20,12 +20,14 @@ if search(:node, 'recipes:ceph\:\:osd').any? { |osd| osd[:hostname] == node[:hos
     )
   end
 
+  # zapisuje sie monmap z wezla mon w folderze /tmp/ceph-stage2/monmap
   if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
     file "/tmp/ceph-stage2/monmap" do
       content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
     end
   end
 
+  # za pomoca mkcephfs inicjalizujemy wezel osd, tworzone sa pliki key.osd.$id oraz keyring.osd.$id
   execute "init osd" do
     command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons osd"
     not_if { File.exists?("/tmp/ceph-stage2/key.osd.*") }
@@ -33,6 +35,7 @@ if search(:node, 'recipes:ceph\:\:osd').any? { |osd| osd[:hostname] == node[:hos
     notifies :create, "ruby_block[read key && keyring]"
   end
 
+  # pliki utworzone podczas inicjalizacji sa zapisywane w wezle
   ruby_block "read key && keyring" do
     action :nothing
     block do
