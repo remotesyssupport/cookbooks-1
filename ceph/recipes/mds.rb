@@ -16,16 +16,15 @@ if a
   end
 
   if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
-  file "/tmp/ceph-stage2/monmap" do
-    content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
-	notifies :run, "execute[init mds]"
-  end
+    file "/tmp/ceph-stage2/monmap" do
+      content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
+    end
   end
 
   execute "init mds" do
-	action :nothing
     command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons mds"
     not_if { File.exists?("/tmp/ceph-stage2/key.mds.*") }
+	only_if { File.exists?("/tmp/ceph-stage2/monmap") }
 	notifies :create, "ruby_block[read key && keyring]"
   end
 
