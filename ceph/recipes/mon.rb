@@ -21,35 +21,27 @@ end
 
 
 %w(mds osd).each do |node_type|
-  search(:node, 'recipes:ceph\:\:'+ node_type).each do |host| 
-	if host[:ceph][node_type]
+  search(:node, "recipes:ceph\:\:#{node_type}").each do |host| 
+    if host[:ceph][node_type]
       %w(key keyring).each do |type|
         node_id = node_type == "mds" ? host[:hostname] : host[:ceph][:osd_id]
         file "/srv/#{type}.#{node_type}.#{node_id}" do
           content host[:ceph][node_type][type.to_sym]
-		  notifies :run, "execute[prepare mon]"
+          notifies :run, "execute[prepare mon]"
           notifies :run, "execute[init mon]"
-		end
+        end
       end
-	end
+    end
   end
 end
 
 execute "prepare mon" do
   action :nothing
   command "mkcephfs -d #{node[:ceph][:mount_point]} --prepare-mon"
-  returns [0, 1]
+  returns [0, 1, 255]
 end
 
 execute "init mon" do 
   action :nothing
   command "mkcephfs -d /srv --init-local-daemons mon"
-  keyring = Base64.encode64(File.read("#{node[:ceph][:mount_point]}/keyring.admin"))
-  node.set[:ceph][:mon][:keyring] = keyring
-end
-
-if node[:ceph][:mon]
-  file "/etc/ceph/keyring" do
-    content Base64.decode64(node[:ceph][:mon][:keyring])
-  end
 end
