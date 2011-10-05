@@ -21,7 +21,7 @@ end
 
 
 %w(mds osd).each do |node_type|
-  search(:node, "recipes:ceph\:\:#{node_type}").each do |host| 
+  search(:node, "recipes:ceph\\:\\:#{node_type}").each do |host| 
     if host[:ceph][node_type]
       %w(key keyring).each do |type|
         node_id = node_type == "mds" ? host[:hostname] : host[:ceph][:osd_id]
