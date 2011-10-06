@@ -6,8 +6,7 @@ include_recipe "ceph"
 execute "prepare monmap" do
   mount_point = node[:ceph][:mount_point]
   command "mkcephfs -c /etc/ceph/ceph.conf -d #{node[:ceph][:mount_point]} --prepare-monmap"
-  only_if { File.read("/etc/ceph/ceph.conf").include?("[mon.#{node[:hostname]}]") }
-  not_if { File.exists?("#{node[:ceph][:mount_point]}/monmap") }
+  only_if { File.read("/etc/ceph/ceph.conf").include?("[mon.#{node[:hostname]}]") && (not File.exists?("#{node[:ceph][:mount_point]}/monmap")) }
   notifies :create, "ruby_block[store monmap]"
 end
 
