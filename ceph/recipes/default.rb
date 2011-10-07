@@ -6,8 +6,6 @@
 #
 # All rights reserved - Do Not Redistribute
 #
-include_recipe "ceph::mon"
-
 execute "add chef repo key" do
   command "wget -q -O- https://raw.github.com/NewDreamNetwork/ceph/master/keys/release.asc | apt-key add -"
   not_if { IO.popen("apt-key list").read.include?("1024D/288995C8") }
@@ -42,6 +40,13 @@ template "/etc/ceph/ceph.conf" do
   )
   notifies :run, "execute[restart mon service]"
 end
+
+execute "restart mon service" do                                                                                                                                             
+  action :nothing                                                                                                                                                            
+  # needs good condition                                                                                                                                                     
+  only_if { false }                                                                                                                                                          
+  command "/etc/init.d/ceph restart mon"                                                                                                                                     
+end 
 
 service "ceph" do
   supports :restart => true
