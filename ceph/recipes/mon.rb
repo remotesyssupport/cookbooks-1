@@ -2,35 +2,35 @@ require 'base64'
 
 include_recipe "ceph"
 
-# mkcephfs tworzy pliki conf i monmap w :mount_point, na podstawie pliku /etc/ceph/ceph.conf
+# generating :mount_point/monmap file (by using mkcephfs), based on /etc/ceph/ceph.conf file
 execute "prepare monmap" do
   mount_point = node[:ceph][:mount_point]
   command "mkcephfs -c /etc/ceph/ceph.conf -d #{node[:ceph][:mount_point]} --prepare-monmap"
   only_if { File.read("/etc/ceph/ceph.conf").include?("[mon.#{node[:hostname]}]") && (not File.exists?("#{node[:ceph][:mount_point]}/monmap")) }
-  notifies :create, "ruby_block[store monmap]"
+  notifies :create, "ruby_block[store monmap]", :immediately
 end
 
-# zawartość :mount_point/monmap umiesza się w nodzie
+# storing :mount_point/monmap file at node
 ruby_block "store monmap" do
   action :nothing
   block do
     monmap = Base64.encode64(File.read("#{node[:ceph][:mount_point]}/monmap"))
     node.set[:ceph][:monmap] = monmap
   end
-  # do wywalenia? sprawdzic
   not_if { node[:ceph][:monmap] && File.exists?("#{node[:ceph][:mount_point]}/monmap") }
 end
 
+class Chef::Recipe; include Ceph end
+
 osd_nodes = search(:node, "recipes:ceph\\:\\:osd")
 mds_nodes = search(:node, "recipes:ceph\\:\\:mds")
-minimal_cluster_exists = osd_nodes.length > 0 && mds_nodes.length > 0
+minimal_cluster_exists = osd_nodes.length == 1 && mds_nodes.length == 1
 
-# za pomoca mkcephfs generuje sie pliki :mount_point/{osdmap,keyring.admin}
-# pomimo kodu wyjscia innego niz 0 aplikacja w szczególnych wypadkach konczy 
-# zadanie sukcesem
-if minimal_cluster_exists
-  # z kazdego mds,osd kopiuje sie pliki key.{osd.$id,mds.$name}, keyring.{osd.$id,mds.$name} 
-  # i umieszcza się w :mount_point
+# at this moment osd and mon have to be fully configured
+# this step is necessary only in case of initial cluster configuration 
+if osd_fullyconfigured? && mds_fullyconfigured? && minimal_cluster_exists
+  
+  # storing key and keyring for each osd and mds at mon node
   %w(mds osd).each do |node_type|
     search(:node, "recipes:ceph\\:\\:#{node_type}").each do |host| 
       if host[:ceph][node_type]
@@ -38,28 +38,31 @@ if minimal_cluster_exists
           node_id = node_type == "mds" ? host[:hostname] : host[:ceph][:osd_id]
           file "#{node[:ceph][:mount_point]}/#{type}.#{node_type}.#{node_id}" do
             content host[:ceph][node_type][type.to_sym]
-            # bez sensu, bo wykonuje sie tez przy rozszerzeniu klastra
-            # notifies :run, "execute[prepare mon]"
-            # notifies :run, "execute[init mon]"
           end
         end
       end
     end
   end
 
+  # generating :mount_point/{osdmap,keyring.admin} files
+  # mkcephfs can exit abnormally even with task is successful
   execute "prepare mon" do
-    #action :nothing
     command "mkcephfs -d #{node[:ceph][:mount_point]} --prepare-mon"
     returns [0, 1, 255]
-    not_if { File.exists?("#{node[:mount_point]}/osdmap") }
-    # brak warunku, potrafi wykonac sie wiecej niz raz
+    not_if { File.exists?("#{node[:ceph][:mount_point]}/osdmap") }
   end
 
-  # za pomoca mkcephfs generujemy monfs w pliku :mount_point/mon
+  # generating :mount_point/mon file
   execute "init mon" do 
-    #action :nothing
     command "mkcephfs -d #{node[:ceph][:mount_point]} --init-local-daemons mon"
-    not_if { File.exists?("#{node[:mount_point]}/mon") }
+    not_if { File.exists?("#{node[:ceph][:mount_point]}/mon") }
+    notifies :restart, "service[ceph]", :immediately
   end
 end
-# dopisac przepis kopiujacy :mount_point/keyring.admin do /etc/ceph/keyring
+
+execute "restart mon service" do
+  action :nothing
+  # needs good condition 
+  only_if { false }
+  command "/etc/init.d/ceph restart mon"
+end

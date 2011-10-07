@@ -6,6 +6,7 @@
 #
 # All rights reserved - Do Not Redistribute
 #
+include_recipe "ceph::mon"
 
 execute "add chef repo key" do
   command "wget -q -O- https://raw.github.com/NewDreamNetwork/ceph/master/keys/release.asc | apt-key add -"
@@ -39,5 +40,9 @@ template "/etc/ceph/ceph.conf" do
     :mds => search(:node, 'recipes:ceph\:\:mds'),
     :osd => search(:node, 'recipes:ceph\:\:osd')
   )
+  notifies :run, "execute[restart mon service]"
 end
 
+service "ceph" do
+  supports :restart => true
+end

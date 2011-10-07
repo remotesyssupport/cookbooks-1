@@ -17,7 +17,7 @@ template "/tmp/ceph-stage2/caps" do
   source "caps.erb"                                                                                                                                                          
 end
 
-if search(:node, 'recipes:ceph\:\:mds').size == 1 
+if search(:node, 'recipes:ceph\:\:mds').size == 1 && (search(:node, 'recipes:ceph\:\:mds').none? { |mds| mds[:ceph][:initial_mds] } || node[:ceph][:initial_mds])
   
   ruby_block "set initial mds" do
     block do
@@ -26,23 +26,22 @@ if search(:node, 'recipes:ceph\:\:mds').size == 1
     not_if { node[:ceph][:initial_mds] }
   end
 
-  # zapisuje sie monmap z wezla mon w folderze /tmp/ceph-stage2/monmap
+  # monmap from mon node is written to /tmp/ceph-stage2/monmap
   if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
     file "/tmp/ceph-stage2/monmap" do
       content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
     end
   end
 
-  # za pomoca mkcephfs inicjalizujemy wezel mds, tworzone sa pliki key.mds.$name oraz keyring.mds.$name
+  # initializing mds node (by using mkcephfs), created files: key.mds.$name and keyring.mds.$name
   execute "init mds" do
     command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons mds"
-    #not_if { File.exists?("/tmp/ceph-stage2/key.mds.*") }
     only_if { File.exists?("/tmp/ceph-stage2/monmap") && (not File.exists?("/tmp/ceph-stage2/key.mds.#{node[:hostname]}")) }
-    notifies :create, "ruby_block[read key && keyring]"
+    notifies :create, "ruby_block[store mds key and keyring]", :immediately
   end
 
-  # pliki utworzone podczas inicjalizacji sa zapisywane w wezle
-  ruby_block "read key && keyring" do
+  # storing key and keyring from previous recipe
+  ruby_block "store mds key and keyring" do
     action :nothing  
     block do
       key = Base64.encode64(File.read("/tmp/ceph-stage2/key.mds.#{node[:hostname]}"))
@@ -52,32 +51,28 @@ if search(:node, 'recipes:ceph\:\:mds').size == 1
     end
     not_if { node[:ceph][:mds] }
   end
-elsif !node[:ceph][:initial_mds] && search(:node, 'recipes:ceph\:\:mds').size > 1 && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
+elsif (not node[:ceph][:initial_mds]) && search(:node, 'recipes:ceph\:\:mds').size > 1 && File.exists?("/etc/ceph/ceph.conf") && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
+  # expanding cluster by new mds
 
-  execute "create key && keyring" do
+  # key and keyring generation
+  execute "create mds key keyring" do
     command "cauthtool --create-keyring /tmp/ceph-stage2/keyring.mds.#{node[:hostname]} && cauthtool --gen-key --caps=/tmp/ceph-stage2/caps --name=mds.#{node[:hostname]} /tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
+    cwd "/tmp/ceph-stage2/"
+    not_if { File.exists?("/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}") } 
+    notifies :run, "execute[add mds to authorized machines]", :immediately
   end    
   
+  # adding mds to authorized machines, based on previously generated keyring
   execute "add mds to authorized machines" do
-    command "ceph auth add /tmp/cepd-stage2/mds.#{node[:hostname]} --in-file=/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
+    action :nothing
+    command "ceph auth add mds.#{node[:hostname]} --in-file=/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
   end
 
+  # setting mds count at mon node
   execute "set mds count" do
+    action :nothing
     command "ceph mds set_max_mds #{search(:node, 'recipes:ceph\:\:mds').size}"
   end
 
 end
 
-# add new mds to cluster
-#
-# cauthtool --create-keyring /tmp/ceph-stage2/keyring.mds.<mds_hostname>
-# /tmp/ceph-stage2/capsh:
-#
-# mds = "allow"
-# mon = "allow rwx"
-# osd = "allow *"
-#
-# cauthtool --gen-key --caps=/tmp/ceph-stage2/caps --name=/tmp/ceph-stage2/mds.<mds_hostname> /tmp/ceph-stage2/keyring.mds.<mds_hostname>
-# ceph auth add /tmp/cepd-stage2/mds.<mds_hostname> --in-file=/tmp/ceph-stage2/keyring.mds.<mds_hostname>
-# ceph mds set_max_mds <mds_count>
-#
