@@ -104,6 +104,7 @@ elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe
   execute "generate and set crushmap" do
     action :nothing
     command "osdmaptool --createsimple #{search(:node, 'recipe:ceph\:\:osd').size} --clobber /tmp/ceph-stage2/osdmap.junk --export-crush /tmp/ceph-stage2/crush.new && ceph osd setcrushmap -i /tmp/ceph-stage2/crush.new"
+    notifies :restart, "service[ceph]"
   end
 
 end

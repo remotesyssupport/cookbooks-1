@@ -72,6 +72,7 @@ elsif (not node[:ceph][:initial_mds]) && search(:node, 'recipes:ceph\:\:mds').si
   execute "set mds count" do
     action :nothing
     command "ceph mds set_max_mds #{search(:node, 'recipes:ceph\:\:mds').size}"
+    notifies :restart, "service[ceph]"
   end
 
 end
