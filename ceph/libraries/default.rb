@@ -1,11 +1,11 @@
 module Ceph
 
   def osd_fullyconfigured?
-    node[:ceph][:osd] && node[:ceph][:osd][:key] && node[:ceph][:osd][:keyring]
+    search(:node, 'recipes:ceph\:\:osd').any? { |osd| osd[:ceph][:osd] && osd[:ceph][:osd][:key] && osd[:ceph][:osd][:keyring] }
   end
 
   def mds_fullyconfigured?
-    node[:ceph][:mds] && node[:ceph][:mds][:key] && node[:ceph][:mds][:keyring]
+    search(:node, 'recipes:ceph\:\:mds').any? { |mds| mds[:ceph][:mds] && mds[:ceph][:mds][:key] && mds[:ceph][:mds][:keyring] }
   end
 
 end
