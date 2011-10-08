@@ -31,6 +31,14 @@ template "/tmp/ceph-stage2/caps" do
   source "caps.erb"
 end
 
+service "ceph-osd" do
+  service_name "ceph-osd"
+  start_command "/etc/init.d/ceph start osd"
+  stop_command "/etc/init.d/ceph stop osd"
+  status_command "/etc/init.d/ceph status osd"
+  restart_command "/etc/init.d/ceph restart osd"
+end
+
 if node[:ceph][:osd_id] && node[:ceph][:osd_id] == 0 && File.exists?("#{node[:ceph][:mount_point]}/osd.#{node[:ceph][:osd_id]}") && search(:node, 'recipes:ceph\:\:osd').size == 1 && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
   
   # monmap from mon node is written to /tmp/ceph-stage2/monmap
@@ -58,6 +66,7 @@ if node[:ceph][:osd_id] && node[:ceph][:osd_id] == 0 && File.exists?("#{node[:ce
       node.set[:ceph][:osd][:keyring] = keyring
     end
     not_if { node[:ceph][:osd] }
+    notifies :restart, "service[ceph-osd]" 
   end
   
 elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe:ceph\:\:osd').size > 1 && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
@@ -104,7 +113,7 @@ elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe
   execute "generate and set crushmap" do
     action :nothing
     command "osdmaptool --createsimple #{search(:node, 'recipe:ceph\:\:osd').size} --clobber /tmp/ceph-stage2/osdmap.junk --export-crush /tmp/ceph-stage2/crush.new && ceph osd setcrushmap -i /tmp/ceph-stage2/crush.new"
-    notifies :restart, "service[ceph]"
+    notifies :restart, "service[ceph-osd]"
   end
 
 end

@@ -12,6 +12,14 @@ directory "/tmp/ceph-stage2"
       :osd => search(:node, 'recipes:ceph\:\:osd'))
   end                                                                                                                                                                        
 end                                                                                                                                                                          
+
+service "ceph-mds" do
+  service_name "ceph-mds"
+  start_command "/etc/init.d/ceph start mds"
+  stop_command "/etc/init.d/ceph stop mds"
+  status_command "/etc/init.d/ceph status mds"
+  restart_command "/etc/init.d/ceph restart mds"
+end
  
 template "/tmp/ceph-stage2/caps" do                                                                                                                                          
   source "caps.erb"                                                                                                                                                          
@@ -49,6 +57,7 @@ if search(:node, 'recipes:ceph\:\:mds').size == 1 && (search(:node, 'recipes:cep
       keyring = Base64.encode64(File.read("/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"))
       node.set[:ceph][:mds][:keyring] = keyring
     end
+    notifies :restart, "service[ceph-mds]"
     not_if { node[:ceph][:mds] }
   end
 elsif (not node[:ceph][:initial_mds]) && search(:node, 'recipes:ceph\:\:mds').size > 1 && File.exists?("/etc/ceph/ceph.conf") && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
@@ -66,13 +75,14 @@ elsif (not node[:ceph][:initial_mds]) && search(:node, 'recipes:ceph\:\:mds').si
   execute "add mds to authorized machines" do
     action :nothing
     command "ceph auth add mds.#{node[:hostname]} --in-file=/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
+    notifies :run, "execute[set mds count]"
   end
 
   # setting mds count at mon node
   execute "set mds count" do
     action :nothing
     command "ceph mds set_max_mds #{search(:node, 'recipes:ceph\:\:mds').size}"
-    notifies :restart, "service[ceph]"
+    notifies :restart, "service[ceph-mds]"
   end
 
 end

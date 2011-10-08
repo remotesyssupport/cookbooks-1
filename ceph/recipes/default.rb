@@ -30,24 +30,3 @@ execute "apt-get update" do
 end
 
 package "ceph"
-
-template "/etc/ceph/ceph.conf" do
-  source "ceph.conf.erb"
-  variables(
-    :mon => search(:node, 'recipes:ceph\:\:mon'),
-    :mds => search(:node, 'recipes:ceph\:\:mds'),
-    :osd => search(:node, 'recipes:ceph\:\:osd')
-  )
-  notifies :run, "execute[restart mon service]"
-end
-
-execute "restart mon service" do                                                                                                                                             
-  action :nothing                                                                                                                                                            
-  # needs good condition                                                                                                                                                     
-  only_if { false }                                                                                                                                                          
-  command "/etc/init.d/ceph restart mon"                                                                                                                                     
-end 
-
-service "ceph" do
-  supports :restart => true
-end

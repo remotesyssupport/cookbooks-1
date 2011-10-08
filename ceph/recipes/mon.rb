@@ -2,6 +2,24 @@ require 'base64'
 
 include_recipe "ceph"
 
+template "/etc/ceph/ceph.conf" do
+  source "ceph.conf.erb"
+  variables(
+    :mon => search(:node, 'recipes:ceph\:\:mon'),
+    :mds => search(:node, 'recipes:ceph\:\:mds'),
+    :osd => search(:node, 'recipes:ceph\:\:osd')
+  )
+  notifies :restart, "service[ceph-mon]"
+end
+
+service "ceph-mon" do
+  service_name "ceph-mon"
+  start_command "/etc/init.d/ceph start mon"
+  stop_command "/etc/init.d/ceph stop mon"
+  status_command "/etc/init.d/ceph status mon"
+  restart_command "/etc/init.d/ceph restart mon"
+end
+
 # generating :mount_point/monmap file (by using mkcephfs), based on /etc/ceph/ceph.conf file
 execute "prepare monmap" do
   mount_point = node[:ceph][:mount_point]
@@ -56,13 +74,6 @@ if osd_fullyconfigured? && mds_fullyconfigured? && minimal_cluster_exists
   execute "init mon" do 
     command "mkcephfs -d #{node[:ceph][:mount_point]} --init-local-daemons mon"
     not_if { File.exists?("#{node[:ceph][:mount_point]}/mon") }
-    notifies :restart, "service[ceph]", :immediately
+    notifies :restart, "service[ceph-mon]"
   end
-end
-
-execute "restart mon service" do
-  action :nothing
-  # needs good condition 
-  only_if { false }
-  command "/etc/init.d/ceph restart mon"
 end
