@@ -9,7 +9,9 @@ directory "/tmp/ceph-stage2"
     variables(                                                                                                                                                               
       :mon => search(:node, 'recipes:ceph\:\:mon'),                                                                                                                          
       :mds => search(:node, 'recipes:ceph\:\:mds'),                                                                                                                          
-      :osd => search(:node, 'recipes:ceph\:\:osd'))
+      :osd => search(:node, 'recipes:ceph\:\:osd'),
+      :initial_mds => search(:node, 'ceph:initial_mds')
+    )
   end                                                                                                                                                                        
 end                                                                                                                                                                          
 

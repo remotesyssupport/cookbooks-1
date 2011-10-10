@@ -7,7 +7,8 @@ template "/etc/ceph/ceph.conf" do
   variables(
     :mon => search(:node, 'recipes:ceph\:\:mon'),
     :mds => search(:node, 'recipes:ceph\:\:mds'),
-    :osd => search(:node, 'recipes:ceph\:\:osd')
+    :osd => search(:node, 'recipes:ceph\:\:osd'),
+    :initial_mds => search(:node, 'ceph:initial_mds')
   )
   notifies :restart, "service[ceph-mon]"
 end
