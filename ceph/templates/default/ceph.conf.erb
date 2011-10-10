@@ -17,7 +17,6 @@
   host = <%= host["hostname"] %>
   <% if (not @initial_mds.empty?) && (@initial_mds.first["hostname"] != host["hostname"])%>
   mds standby replay = true
-  mds standby for rank = 0
   mds standby for name = <%= @initial_mds.first["hostname"] %>
   <% end %>
 <% end %>
