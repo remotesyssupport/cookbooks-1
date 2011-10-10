@@ -83,14 +83,14 @@ elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe
   # initalizing :mount_point/osd.:osd_id directory
   execute "initialize osd fs" do
     action :nothing
-    command "cosd -c /etc/ceph/ceph.conf -i #{node[:ceph][:osd_id]} --mkfs --monmap /tmp/ceph-stage2/monmap"
+    command "ceph-osd -c /etc/ceph/ceph.conf -i #{node[:ceph][:osd_id]} --mkfs --monmap /tmp/ceph-stage2/monmap"
     notifies :run, "execute[create osd key and keyring]", :immediately
   end
 
   # creating key and keyring
   execute "create osd key and keyring" do
     action :nothing
-    command "cauthtool --create-keyring /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]} && cauthtool --gen-key --caps=/tmp/ceph-stage2/caps --name=osd.#{node[:ceph][:osd_id]} /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
+    command "ceph-authtool --create-keyring /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]} && ceph-authtool --gen-key --caps=/tmp/ceph-stage2/caps --name=osd.#{node[:ceph][:osd_id]} /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
     cwd "/tmp/ceph-stage2/"
     notifies :run, "execute[add osd to authorized machines]", :immediately
   end

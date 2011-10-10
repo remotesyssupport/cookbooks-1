@@ -67,7 +67,7 @@ elsif (not node[:ceph][:initial_mds]) && search(:node, 'recipes:ceph\:\:mds').si
 
   # key and keyring generation
   execute "create mds key keyring" do
-    command "cauthtool --create-keyring /tmp/ceph-stage2/keyring.mds.#{node[:hostname]} && cauthtool --gen-key --caps=/tmp/ceph-stage2/caps --name=mds.#{node[:hostname]} /tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
+    command "ceph-authtool --create-keyring /tmp/ceph-stage2/keyring.mds.#{node[:hostname]} && ceph-authtool --gen-key --caps=/tmp/ceph-stage2/caps --name=mds.#{node[:hostname]} /tmp/ceph-stage2/keyring.mds.#{node[:hostname]}"
     cwd "/tmp/ceph-stage2/"
     not_if { File.exists?("/tmp/ceph-stage2/keyring.mds.#{node[:hostname]}") } 
     notifies :run, "execute[add mds to authorized machines]", :immediately
