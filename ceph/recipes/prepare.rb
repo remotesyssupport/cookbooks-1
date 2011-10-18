@@ -2,8 +2,11 @@ require 'base64'
 
 include_recipe "ceph"
 
+class Chef::Recipe; include Ceph end
+
 # this recipe should mount cluster and create directory for each app server (only if there are at least 2 osds active)
-if IO.popen("ceph -s").read.match(/(\d) osds/)[1].to_i >= 2
+# !! this is tripsta specific recipe !!
+if active_osds_count >= 2
 
   directory "/mnt/cluster"
 

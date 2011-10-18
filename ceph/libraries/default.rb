@@ -23,4 +23,32 @@ module Ceph
       nil
     end
   end
+
+  def get_active_monitors
+    out = IO.popen("ceph -s").read.match(/mons at \{(.*)\}/)
+    if out.nil?
+      []
+    else
+      mon = out[1].split(",")
+      mon.map { |e| e.match(/^(.+)=/)[1] }
+    end
+  end
+
+  def active_monitors_count
+    get_active_monitors.size
+  end
+  
+  def active_osds_count
+    out = IO.popen("ceph -s").read.match(/(\d) osds/)
+
+    out.nil? ? 0 : out[1].to_i
+  end
+
+  def initial_mon_exists?
+    not (search(:node, 'ceph:initial_mon').empty?)
+  end
+  
+  def get_initial_mon
+    search(:node, 'ceph:initial_mon').first
+  end
 end
