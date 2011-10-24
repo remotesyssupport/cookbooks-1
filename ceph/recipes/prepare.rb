@@ -19,6 +19,12 @@ if active_osds_count >= 2
     search(:node, 'recipes:application_server').each do |app|
       directory "/mnt/cluster/#{app[:hostname]}"
     end
+
+    search(:node, 'recipes:mysql_backup').each do |backup|
+      directory "/mnt/cluster/mysql_backup/#{backup[:hostname]}" do
+        recursive true
+      end
+    end
   end
 
 end
