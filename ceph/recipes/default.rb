@@ -6,6 +6,9 @@
 #
 # All rights reserved - Do Not Redistribute
 #
+
+include_recipe "monit"
+
 execute "add chef repo key" do
   command "wget -q -O- https://raw.github.com/NewDreamNetwork/ceph/master/keys/release.asc | apt-key add -"
   not_if { IO.popen("apt-key list").read.include?("1024D/288995C8") }

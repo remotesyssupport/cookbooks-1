@@ -8,14 +8,14 @@ ruby_block "set osd id" do
 end
 
 include_recipe "ceph"
-directory "/tmp/ceph-stage2"
+directory "#{node[:ceph][:mount_point]}/ceph-stage2"
 
 if node[:ceph][:osd_id]
   directory "#{node[:ceph][:mount_point]}/osd.#{node[:ceph][:osd_id]}"
 end
 
 if search(:node, 'recipes:ceph\:\:osd').all? { |osd| osd[:ceph][:osd_id] }
-  %w(/tmp/ceph-stage2/conf /etc/ceph/ceph.conf).each do |conf|
+  ["#{node[:ceph][:mount_point]}/ceph-stage2/conf", "/etc/ceph/ceph.conf"].each do |conf|
     template conf do
       source "ceph.conf.erb"
       variables(
@@ -28,7 +28,7 @@ if search(:node, 'recipes:ceph\:\:osd').all? { |osd| osd[:ceph][:osd_id] }
   end
 end
 
-template "/tmp/ceph-stage2/caps" do
+template "#{node[:ceph][:mount_point]}/ceph-stage2/caps" do
   source "caps.erb"
 end
 
@@ -42,9 +42,9 @@ end
 
 if node[:ceph][:osd_id] && node[:ceph][:osd_id] == 0 && File.exists?("#{node[:ceph][:mount_point]}/osd.#{node[:ceph][:osd_id]}") && search(:node, 'recipes:ceph\:\:osd').size == 1 && File.read("/etc/ceph/ceph.conf").include?("[osd.#{node[:ceph][:osd_id]}]")
   
-  # monmap from mon node is written to /tmp/ceph-stage2/monmap
+  # monmap from mon node is written to <mount_point>/ceph-stage2/monmap
   if search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap]
-    file "/tmp/ceph-stage2/monmap" do
+    file "#{node[:ceph][:mount_point]}/ceph-stage2/monmap" do
       content Base64.decode64(search(:node, 'recipes:ceph\:\:mon').first[:ceph][:monmap])
     end
   end
@@ -52,8 +52,8 @@ if node[:ceph][:osd_id] && node[:ceph][:osd_id] == 0 && File.exists?("#{node[:ce
   # initializing osd node (by using mkcephfs), created files: key.mds.$name and keyring.mds.$name
   # :mount_point/osd.:osd_id directory is also initialized
   execute "init osd" do
-    command "mkcephfs -c /etc/ceph/ceph.conf -d /tmp/ceph-stage2 --init-local-daemons osd"
-    only_if { File.exists?("/tmp/ceph-stage2/monmap") && (not File.exists?("/tmp/ceph-stage2/key.osd.#{node[:ceph][:osd_id]}")) }
+    command "mkcephfs -c /etc/ceph/ceph.conf -d #{node[:ceph][:mount_point]}/ceph-stage2 --init-local-daemons osd"
+    only_if { File.exists?("#{node[:ceph][:mount_point]}/ceph-stage2/monmap") && (not File.exists?("#{node[:ceph][:mount_point]}/ceph-stage2/key.osd.#{node[:ceph][:osd_id]}")) }
     notifies :create, "ruby_block[store osd key and keyring]", :immediately
   end
 
@@ -61,9 +61,9 @@ if node[:ceph][:osd_id] && node[:ceph][:osd_id] == 0 && File.exists?("#{node[:ce
   ruby_block "store osd key and keyring" do
     action :nothing
     block do
-      key = Base64.encode64(File.read("/tmp/ceph-stage2/key.osd.#{node[:ceph][:osd_id]}"))
+      key = Base64.encode64(File.read("#{node[:ceph][:mount_point]}/ceph-stage2/key.osd.#{node[:ceph][:osd_id]}"))
       node.set[:ceph][:osd][:key] = key
-      keyring = Base64.encode64(File.read("/tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"))
+      keyring = Base64.encode64(File.read("#{node[:ceph][:mount_point]}/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"))
       node.set[:ceph][:osd][:keyring] = keyring
     end
     not_if { node[:ceph][:osd] }
@@ -75,30 +75,30 @@ elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe
 
   # get current monmap from mon
   execute "get monmap" do
-    command "ceph mon getmap -o /tmp/ceph-stage2/monmap"
-    not_if { File.exists?("/tmp/ceph-stage2/monmap") }
+    command "ceph mon getmap -o #{node[:ceph][:mount_point]}/ceph-stage2/monmap"
+    not_if { File.exists?("#{node[:ceph][:mount_point]}/ceph-stage2/monmap") }
     notifies :run, "execute[initialize osd fs]", :immediately
   end
 
   # initalizing :mount_point/osd.:osd_id directory
   execute "initialize osd fs" do
     action :nothing
-    command "ceph-osd -c /etc/ceph/ceph.conf -i #{node[:ceph][:osd_id]} --mkfs --monmap /tmp/ceph-stage2/monmap"
+    command "ceph-osd -c /etc/ceph/ceph.conf -i #{node[:ceph][:osd_id]} --mkfs --monmap #{node[:ceph][:mount_point]}/ceph-stage2/monmap"
     notifies :run, "execute[create osd key and keyring]", :immediately
   end
 
   # creating key and keyring
   execute "create osd key and keyring" do
     action :nothing
-    command "ceph-authtool --create-keyring /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]} && ceph-authtool --gen-key --caps=/tmp/ceph-stage2/caps --name=osd.#{node[:ceph][:osd_id]} /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
-    cwd "/tmp/ceph-stage2/"
+    command "ceph-authtool --create-keyring #{node[:ceph][:mount_point]}/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]} && ceph-authtool --gen-key --caps=#{node[:ceph][:mount_point]}/ceph-stage2/caps --name=osd.#{node[:ceph][:osd_id]} #{node[:ceph][:mount_point]}/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
+    cwd "#{node[:ceph][:mount_point]}/ceph-stage2/"
     notifies :run, "execute[add osd to authorized machines]", :immediately
   end
   
   # adding osd to authorized machines, based on previously generated keyring
   execute "add osd to authorized machines" do
     action :nothing
-    command "ceph auth add osd.#{node[:ceph][:osd_id]} osd 'allow *' mon 'allow rwx' -i /tmp/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
+    command "ceph auth add osd.#{node[:ceph][:osd_id]} osd 'allow *' mon 'allow rwx' -i #{node[:ceph][:mount_point]}/ceph-stage2/keyring.osd.#{node[:ceph][:osd_id]}"
     notifies :run, "execute[set osd count]", :immediately
   end
   
@@ -113,8 +113,12 @@ elsif node[:ceph][:osd_id] && node[:ceph][:osd_id] != 0 && search(:node, 'recipe
   # balanced - data are distributed evenly between osd nodes
   execute "generate and set crushmap" do
     action :nothing
-    command "osdmaptool --createsimple #{search(:node, 'recipe:ceph\:\:osd').size} --clobber /tmp/ceph-stage2/osdmap.junk --export-crush /tmp/ceph-stage2/crush.new && ceph osd setcrushmap -i /tmp/ceph-stage2/crush.new"
+    command "osdmaptool --createsimple #{search(:node, 'recipe:ceph\:\:osd').size} --clobber #{node[:ceph][:mount_point]}/ceph-stage2/osdmap.junk --export-crush #{node[:ceph][:mount_point]}/ceph-stage2/crush.new && ceph osd setcrushmap -i #{node[:ceph][:mount_point]}/ceph-stage2/crush.new"
     notifies :restart, "service[ceph-osd]"
   end
 
+end
+
+if node[:ceph][:osd_id]
+  monitrc "ceph-osd", :template => "ceph-monit", :type => "osd", :id => node[:ceph][:osd_id]
 end

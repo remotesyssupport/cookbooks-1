@@ -89,23 +89,19 @@ if (not node[:ceph][:initial_mon]) && (not initial_mon_exists?)
     action :nothing
   end
 
-elsif initial_mon_exists? && get_initial_mon[:hostname] != node[:hostname]
-  execute "expanding cluster" do
-    command "echo 1 > /tmp/qq"
-  end
-      
+elsif initial_mon_exists? && get_initial_mon[:hostname] != node[:hostname] && (not File.exists?("/srv/mon"))
   snapshot = data_bag_item("ceph", "mon_snapshot")    
 
   # store snapshot
   if snapshot
-    file "/tmp/mon_snapshot.tar.xz" do
+    file "#{node[:ceph][:mount_point]}/mon_snapshot.tar.xz" do
       content Base64.decode64(snapshot["data"])
     end
   end
 
   execute "unpack snapshot" do
-    command "tar xJfv /tmp/mon_snapshot.tar.xz -C #{node[:ceph][:mount_point]}"
-    only_if { File.exists?("/tmp/mon_snapshot.tar.xz") }
+    command "tar xJfv #{node[:ceph][:mount_point]}/mon_snapshot.tar.xz -C #{node[:ceph][:mount_point]}"
+    only_if { File.exists?("#{node[:ceph][:mount_point]}/mon_snapshot.tar.xz") }
     notifies :restart, "service[ceph-mon]"
   end
 
@@ -122,3 +118,5 @@ elsif initial_mon_exists? && node[:ceph][:initial_mon] && active_monitors_count 
   end
 
 end
+
+monitrc "ceph-mon", :template => "ceph-monit", :type => "mon", :id => node[:hostname]
