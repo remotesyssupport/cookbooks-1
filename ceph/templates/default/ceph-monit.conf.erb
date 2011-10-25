@@ -1,0 +1,3 @@
+check process ceph-<%= @type %> with pidfile /var/run/ceph/<%= @type %>.<%= @id %>.pid
+  start program = "/etc/init.d/ceph start <%= @type %>"
+  stop program = "/etc/init.d/ceph stop <%= @type %>"

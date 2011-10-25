@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'json'
+require 'socket'
+
+# possible performance counters:
+COUNTERS = {
+  "mape_dup" => { :desc => "dup osdmap epochs", :single => true },
+  "numpg_primary" => { :desc => "num primary pgs", :single => true },
+  "op_rw_rlat" => { :desc => "client rmw readable/applied latency", :single => false},
+  "op_r_lat" => { :desc => "client read latency", :single => false},
+  "op_r" => { :desc => "client reads", :single => true},
+  "loadavg" => { :desc => "", :single => true},
+  "op_w_rlat" => { :desc => "client write readable/applied latency", :single => false},
+  "op" => { :desc => "client ops", :single => true},
+  "mape" => { :desc => "osdmap epochs", :single => true},
+  "numpg_replica" => { :desc => " num replica pgs", :single => true},
+  "op_r_outb" => { :desc => "client read out bytes", :single => true},
+  "op_inb" => { :desc => "client op in bytes (writes)", :single => true},
+  "op_rw_inb" => { :desc => "client rmw in bytes", :single => true},
+  "op_w_inb" => { :desc => "client write in bytes", :single => true},
+  "op_wip" => { :desc => "rep ops currently being processed (primary)", :single => true},
+  "push_outb" => { :desc => "pushed bytes", :single => true},
+  "sop_push_inb" => { :desc => "", :single => true},
+  "sop_pull_lat" => { :desc => "", :single => false},
+  "sop_w_inb" => { :desc => "replicated write in bytes", :single => true},
+  "sop_w" => { :desc => "replicated (client) writes", :single => true},
+  "op_rw_lat" => { :desc => "client rmw latency ", :single => false},
+  "op_rw_outb" => { :desc => "client rmw out bytes", :single => true},
+  "op_w_lat" => { :desc => "client write latency", :single => false},
+  "op_w" => { :desc => "client writes", :single => true},
+  "op_lat" => { :desc => "client op latency", :single => false},
+  "opq" => { :desc => "op queue length (waiting to be processed yet)", :single => true},
+  "map" => { :desc => "", :single => true},
+  "push" => { :desc => "push messages", :single => true},
+  "pull" => { :desc => "pull requests sent", :single => true},
+  "sop_push_lat" => { :desc => "subop push latency", :single => false},
+  "sop_push" => { :desc => "sop push", :single => true},
+  "sop_pull" => { :desc => "pull request", :single => true},
+  "sop_w_lat" => { :desc => "replicated write latency", :single => false},
+  "sop_inb" => { :desc => "subop in bytes", :single => true},
+  "op_rw" => { :desc => "client rmw", :single => true},
+  "op_outb" => { :desc => "client op out bytes (reads)", :single => true},
+  "hbfrom" => { :desc => "heartbeat from", :single => true},
+  "buf" => { :desc => "", :single => true},
+  "rop" => { :desc => "", :single => true},
+  "numpg_stray" => { :desc => "num stray pgs", :single => true},
+  "numpg" => { :desc => "num pgs", :single => true},
+  "sop_lat" => { :desc => "subop latency", :single => false},
+  "sop" => { :desc => "subops", :single => true},
+  "hbto" => { :desc => "hearbeat to", :single => true}
+}
+
+counters = "<%= @counters %>".split(",")
+
+if ARGV[0] == "config"
+  title = counters.map { |e| COUNTERS[e][:desc] }.join(" / ")
+  puts <<EOF
+graph_title #{title || counters.first}
+graph_vlabel <%= @label %>
+graph_category ceph
+EOF
+  counters.each { |e|
+    puts "#{e}.label #{COUNTERS[e][:desc]}"
+  }
+else
+  osd_id = <%= @id %>
+  socket = UNIXSocket.new("/var/run/ceph/osd.#{osd_id}.asok")
+
+  socket.send([1].pack("N"), 0)
+  response = socket.recv(4).unpack("N")
+
+  if response.size > 0
+    payload_size = response.first
+    payload = socket.recv(payload_size -= 1)
+    data = JSON.parse(payload)["osd.#{osd_id}.log"]
+    counters.each { |e|
+      if COUNTERS[e][:single]
+        puts "#{e}.value #{data[e]}"
+      else
+        puts "#{e}.value #{data[e]["sum"]}"
+      end
+    }
+  end
+end

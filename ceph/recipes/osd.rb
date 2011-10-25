@@ -121,4 +121,10 @@ end
 
 if node[:ceph][:osd_id]
   monitrc "ceph-osd", :template => "ceph-monit", :type => "osd", :id => node[:ceph][:osd_id]
+  muninrc "ceph_client_latency", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "op_r_lat,op_w_lat", :label => "latency"
+  muninrc "ceph_client_rw", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "op_r,op_w", :label => "number of ops"
+  muninrc "ceph_pgs", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "numpg_primary,numpg_replica", :label => "pg count"
+  muninrc "ceph_ops", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "op", :label => "numer of ops"
+  muninrc "ceph_opq", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "opq", :label => "numer of ops"
+  muninrc "ceph_hbt", :template => "ceph-perf", :id => node[:ceph][:osd_id], :counters => "hbto,hbfrom", :label => "node count"
 end
