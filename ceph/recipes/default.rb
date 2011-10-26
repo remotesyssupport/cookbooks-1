@@ -38,13 +38,6 @@ class Chef::Recipe; include Ceph end
 
 monitors = get_monitors
 
-#mount <ceph_cluster>:/node["hostname"] at /srv/backup/logs
-mount_cluster = execute "mount /srv/backup/logs" do
-  action :nothing
-  command "ceph-fuse -m #{monitors}:/#{node[:hostname]} /srv/backup/logs"
-  not_if { IO.popen("mount").read.include?("/srv/backup/logs") }
-end
-
 template "/etc/ceph/ceph.conf" do
   source "ceph.conf.erb"
   variables(
