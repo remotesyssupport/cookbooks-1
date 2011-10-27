@@ -2,7 +2,7 @@
   auth supported = none
 
 [mon]
-  mon data = /srv/mon
+  mon data = <%= node[:ceph][:mount_point] %>/mon
 
 <% @mon.each do |host| %>
 [mon.<%= host["hostname"] %>]
@@ -22,8 +22,8 @@
 <% end %>
 
 [osd]
-  osd data = /srv/$name
-  osd journal = /srv/$name.journal
+  osd data = <%= node[:ceph][:mount_point] %>/$name
+  osd journal = <%= node[:ceph][:mount_point] %>/$name.journal
   osd journal size = 1000
 
 <% @osd.each do |host| %>
